@@ -47,6 +47,13 @@ button{font-family:inherit;}
 #leftPanel{width:266px;flex:none;background:#fff;border-right:1px solid #e2e5e9;overflow-y:auto;padding:16px 15px;}
 .sectionLabel{font-size:11px;font-weight:600;letter-spacing:.6px;color:#9098a1;text-transform:uppercase;margin-bottom:11px;}
 .card{background:#f7f8fa;border:1px solid #ebeef1;border-radius:11px;padding:4px 13px;}
+#metaHighlight{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.metaHiRow{background:linear-gradient(135deg,rgba(37,99,235,0.08),rgba(37,99,235,0.03));border:1px solid rgba(37,99,235,0.18);border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;}
+.metaHiLabel{font-size:10.5px;color:#5c79b8;font-weight:600;}
+.metaHiValue{font-size:15px;color:#12233f;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.depthTypeBadge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;}
+.depthTypeBadge.single{color:#2f8a56;background:#eaf6ef;}
+.depthTypeBadge.compound{color:#c0504f;background:#fbeded;}
 .cardRow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #edeff2;}
 .cardRow:last-child{border-bottom:none;}
 .cardRow .k{font-size:12px;color:#7b828b;}
@@ -137,6 +144,8 @@ button{font-family:inherit;}
 #overlayBox .row1{display:flex;align-items:center;justify-content:space-between;}
 #overlayBox .lab{font-size:11px;font-weight:600;letter-spacing:.4px;color:#cfd4da;text-transform:uppercase;}
 #overlayToggle{display:flex;align-items:center;gap:5px;border:none;background:rgba(255,255,255,0.08);color:#eef1f4;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;}
+#allVerticesToggle{display:flex;align-items:center;gap:5px;border:none;background:rgba(255,255,255,0.08);color:#eef1f4;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;}
+#allVerticesToggle.active{background:#818cf8;color:#fff;}
 #opacityRow{display:flex;align-items:center;gap:9px;}
 #opacityRow span{font-size:11px;color:#9aa1aa;white-space:nowrap;}
 #opacityVal{font-family:'JetBrains Mono',monospace;color:#eef1f4 !important;width:30px;text-align:right;}
@@ -318,6 +327,7 @@ button{font-family:inherit;}
       <div class="card" id="imageInfoCard"></div>
 
       <div class="sectionLabel" style="margin-top:18px;">환자 / 창상 정보</div>
+      <div id="metaHighlight"></div>
       <div class="card" id="metaCard"></div>
 
       <div class="sectionLabel" style="margin-top:18px;">깊이 범례</div>
@@ -397,6 +407,10 @@ button{font-family:inherit;}
           <span>투명도</span>
           <input type="range" id="opacitySlider" min="0" max="100" value="85">
           <span id="opacityVal" class="mono">85</span>
+        </div>
+        <div class="row1">
+          <span class="lab">전체 점 보기</span>
+          <button id="allVerticesToggle">⚬ <span id="allVerticesToggleText">꺼짐</span></button>
         </div>
       </div>
 
@@ -18858,7 +18872,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     selectedId: null,
     draft: [],                // 그리는 중인 점들 [[x,y],...]
     pendingType: 'ROI', pendingParent: null,
-    overlayVisible: true, overlayOpacity: 0.85,
+    overlayVisible: true, overlayOpacity: 0.85, showAllVertices: false,
     history: [], future: [],  // undo/redo 스냅샷
     imgNaturalW: 1000, imgNaturalH: 700,
     dragVertex: null,         // {roiId, idx}
@@ -18941,7 +18955,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     candThreshLabel: $('candThreshLabel'), candPolyCount: $('candPolyCount'),
     confirmCandBtn: $('confirmCandBtn'), cancelCandBtn: $('cancelCandBtn'), candSelectionPanel: $('candSelectionPanel'),
     emptyState: $('emptyState'),
-    imageInfoCard: $('imageInfoCard'), metaCard: $('metaCard'),
+    imageInfoCard: $('imageInfoCard'), metaCard: $('metaCard'), metaHighlight: $('metaHighlight'),
     progCur: $('progCur'), progTotal: $('progTotal'), progressBarInner: $('progressBarInner'), progressPct: $('progressPct'),
     prevBtn: $('prevBtn'), nextBtn: $('nextBtn'),
     saveDot: $('saveDot'), saveStatusText: $('saveStatusText'),
@@ -18956,6 +18970,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     applySimplifyBtn: $('applySimplifyBtn'), clearVertexSelectionBtn: $('clearVertexSelectionBtn'),
     overlayToggle: $('overlayToggle'), overlayToggleText: $('overlayToggleText'),
     opacitySlider: $('opacitySlider'), opacityVal: $('opacityVal'),
+    allVerticesToggle: $('allVerticesToggle'), allVerticesToggleText: $('allVerticesToggleText'),
     viewport: $('viewport'), stage: $('stage'), stageInner: $('stageInner'), stageImg: $('stageImg'), stageSvg: $('stageSvg'),
     readoutName: $('readoutName'), readoutDims: $('readoutDims'),
     roiCountTop: $('roiCountTop'), roiListBody: $('roiListBody'), addRoiBtn: $('addRoiBtn'),
@@ -19329,7 +19344,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   el.unifiedFolderInput.onchange = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    await loadUnifiedFileList(files, '폴더');
+    const folderName = (files[0].webkitRelativePath || '').split('/')[0] || '(폴더명 확인 불가)';
+    await loadUnifiedFileList(files, `폴더 "${folderName}"`);
     el.unifiedFolderInput.value = '';
   };
 
@@ -19353,7 +19369,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         el.unifiedLoadStatus.textContent = 'ZIP 안에 파일이 없습니다';
         return;
       }
-      await loadUnifiedFileList(files, 'ZIP');
+      await loadUnifiedFileList(files, `ZIP "${zipFile.name}"`);
     } catch (err) {
       console.error(err);
       el.unifiedLoadStatus.textContent = 'ZIP 압축 해제 중 오류가 발생했습니다: ' + err.message;
@@ -19942,10 +19958,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   function renderMeta(wid) {
     const w = WOUNDS[wid] || {};
     const c = CASES[w.case_id] || {};
+    const compound = isCompoundDepth();
+    const bodySite = humanize('body_site', w.body_site);
+    const finalDepth = humanize('plain', w.final_depth);
+    const typeBadge = `<span class="depthTypeBadge ${compound ? 'compound' : 'single'}">${compound ? '복합 상처' : '단일 상처'}</span>`;
+    el.metaHighlight.innerHTML = `
+      <div class="metaHiRow"><span class="metaHiLabel">신체 부위</span><span class="metaHiValue">${escapeHtml(bodySite)}</span></div>
+      <div class="metaHiRow"><span class="metaHiLabel">최종 화상 깊이</span><span class="metaHiValue">${escapeHtml(finalDepth)} ${typeBadge}</span></div>
+    `;
     const rows = [
       ['화상 원인', humanize('burn_cause', c.burn_cause)],
-      ['신체 부위', humanize('body_site', w.body_site)],
-      ['최종 화상 깊이', humanize('plain', w.final_depth)],
     ];
     el.metaCard.innerHTML = rows.map(([k, v]) =>
       `<div class="cardRow"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`
@@ -20604,6 +20626,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     el.opacityVal.textContent = e.target.value;
     renderSvg();
   };
+  el.allVerticesToggle.onclick = () => {
+    state.showAllVertices = !state.showAllVertices;
+    el.allVerticesToggleText.textContent = state.showAllVertices ? '켜짐' : '꺼짐';
+    el.allVerticesToggle.classList.toggle('active', state.showAllVertices);
+    renderSvg();
+  };
 
   /* ============================================================
      SVG 렌더링
@@ -20664,6 +20692,17 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const rangeSelected = state.selectedVertexIndices.includes(idx);
           const anchor = state.vertexAnchor === idx;
           html += `<circle class="vert" data-vertex-index="${idx}" cx="${x}" cy="${y}" r="${(rangeSelected?7:5) / state.zoom}" fill="${rangeSelected?'#818cf8':'#fff'}" stroke="${anchor?'#fff':d.stroke}" stroke-width="${(rangeSelected?3:2.5) / state.zoom}"></circle>`;
+        });
+      }
+      // 전체 점 보기: 선택되지 않은 나머지 ROI들도 각자 색상으로 작은 점 표시
+      // (선택된 ROI는 위에서 이미 더 큰 편집용 핸들로 그려졌으므로 여기서는 제외)
+      if (state.showAllVertices && state.overlayVisible) {
+        state.rois.forEach((r) => {
+          if (r.hidden || r.id === state.selectedId) return;
+          const d = r.roiType === 'Ignore' ? IGNORE_STYLE : (DEPTHS[r.depth] || DEPTHS.DPT);
+          r.points.forEach(([x, y]) => {
+            html += `<circle class="vertGhost" cx="${x}" cy="${y}" r="${3.2 / state.zoom}" fill="${d.stroke}" stroke="#fff" stroke-width="${1.2 / state.zoom}" pointer-events="none"></circle>`;
+          });
         });
       }
     }
@@ -21280,6 +21319,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       state.spacePan = false;
       el.viewport.classList.remove('space-pan');
     }
+  });
+  // 스페이스바를 누른 채로 창이 포커스를 잃으면(다른 창 클릭, 알림창 등) keyup을
+  // 못 받아서 spacePan이 계속 true로 남는 문제가 있었음(폴리곤 작업 중 이미지가
+  // 계속 끌려다니는 현상의 원인) — 포커스를 잃는 즉시 강제로 꺼서 방지.
+  window.addEventListener('blur', () => {
+    state.spacePan = false;
+    state.panStart = null;
+    el.viewport.classList.remove('space-pan', 'panning');
   });
 
   el.clearVertexSelectionBtn.onclick = () => clearVertexRangeSelection();
