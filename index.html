@@ -20550,11 +20550,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return inside;
   }
   function hitTestRoi(px, py) {
-    // Sub-ROI를 먼저, 나중에 그려진 것을 우선
+    // Sub-ROI를 먼저, 나중에 그려진 것을 우선, Ignore는 가장 후순위
     const subs = state.rois.filter((r) => r.roiType === 'Sub-ROI' && !r.hidden);
     const tops = state.rois.filter((r) => r.roiType === 'ROI' && !r.hidden);
+    const ignores = state.rois.filter((r) => r.roiType === 'Ignore' && !r.hidden);
     for (let i = subs.length - 1; i >= 0; i--) if (pointInPolygon(px, py, subs[i].points)) return subs[i].id;
     for (let i = tops.length - 1; i >= 0; i--) if (pointInPolygon(px, py, tops[i].points)) return tops[i].id;
+    for (let i = ignores.length - 1; i >= 0; i--) if (pointInPolygon(px, py, ignores[i].points)) return ignores[i].id;
     return null;
   }
 
