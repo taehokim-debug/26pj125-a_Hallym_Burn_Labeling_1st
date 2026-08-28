@@ -21212,6 +21212,17 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const all = buildJsonEntries();
     const entries = all.filter((e) => EXPORTABLE_STATUSES.includes(e.status));
     if (!entries.length) { alert('아직 저장된 작업이 없습니다.\n미검수/재작업 요청 상태인 이미지는 제외됩니다.'); return; }
+    const skipped = all.filter((e) => !EXPORTABLE_STATUSES.includes(e.status));
+    if (skipped.length) {
+      const preview = skipped.slice(0, 15).map((e) => e.id).join(', ') + (skipped.length > 15 ? ` 외 ${skipped.length - 15}건` : '');
+      const ok = confirm(
+        `전체 ${all.length}건 중 ${skipped.length}건이 미검수/재작업 상태라 이번 다운로드에서 제외됩니다.\n\n` +
+        `제외되는 항목: ${preview}\n\n` +
+        `예상과 다르다면(예: 전부 완료했다고 생각했는데 제외 건이 있다면) 취소하고 먼저 확인해 주세요.\n\n` +
+        `이대로 ${entries.length}건만 다운로드하시겠습니까?`
+      );
+      if (!ok) return;
+    }
     const zip = new JSZip();
     entries.forEach((entry) => zip.file(entry.id + '.json', JSON.stringify(entry, null, 1)));
     zip.file('_manifest.json', JSON.stringify({
@@ -21219,6 +21230,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       total: all.length,
       completed: entries.length,
       skipped: all.length - entries.length,
+      skipped_ids: skipped.map((e) => e.id),
       ids: entries.map((e) => e.id),
     }, null, 1));
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
